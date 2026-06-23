@@ -9,22 +9,34 @@ import {
   BookOpen,
 } from 'lucide-react';
 import { getCurrentOrganization } from '@/lib/auth/getCurrentOrganization';
-import { getDashboardData } from '@/lib/dashboard/queries';
+import {
+  getDashboardData,
+  getGettingStartedState,
+} from '@/lib/dashboard/queries';
 import { formatCurrency, formatDate } from '@/lib/utils/format';
 import { Card, CardHeader, CardBody } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { GettingStartedDashboard } from '@/components/dashboard/GettingStartedDashboard';
 
 export default async function DashboardPage() {
   const ctx = await getCurrentOrganization();
   if (!ctx) redirect('/login');
+
+  const firstName = ctx.profile.full_name?.split(' ')[0] || 'there';
+
+  const gettingStarted = await getGettingStartedState();
+  if (gettingStarted.closed_months_count === 0) {
+    return (
+      <GettingStartedDashboard firstName={firstName} state={gettingStarted} />
+    );
+  }
 
   const data = await getDashboardData();
 
   const monthProfit =
     data.money_in_this_month_cents - data.money_out_this_month_cents;
   const ytdProfit = data.money_in_ytd_cents - data.money_out_ytd_cents;
-  const firstName = ctx.profile.full_name?.split(' ')[0] || 'there';
   const hasMonthData =
     data.money_in_this_month_cents > 0 || data.money_out_this_month_cents > 0;
 

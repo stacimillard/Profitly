@@ -17,6 +17,58 @@ export interface DashboardData {
   recent_wins: WinJournalEntry[];
 }
 
+export interface GettingStartedState {
+  has_bank_account: boolean;
+  has_transactions: boolean;
+  has_categorized_transactions: boolean;
+  uncategorized_count: number;
+  transaction_count: number;
+  closed_months_count: number;
+}
+
+/**
+ * Lightweight check used by the dashboard to decide whether to show the
+ * getting-started flow (no numbers) or the normal KPI dashboard.
+ * Users only graduate to the KPI view after closing their first month.
+ */
+export async function getGettingStartedState(): Promise<GettingStartedState> {
+  const supabase = await createClient();
+
+  const [
+    { count: bankAccountCount },
+    { count: transactionCount },
+    { count: categorizedCount },
+    { count: uncategorizedCount },
+    { count: closedMonthsCount },
+  ] = await Promise.all([
+    supabase
+      .from('bank_accounts')
+      .select('id', { count: 'exact', head: true })
+      .eq('is_active', true),
+    supabase.from('transactions').select('id', { count: 'exact', head: true }),
+    supabase
+      .from('transactions')
+      .select('id', { count: 'exact', head: true })
+      .in('status', ['categorized', 'reconciled']),
+    supabase
+      .from('transactions')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'uncategorized'),
+    supabase
+      .from('closed_months')
+      .select('id', { count: 'exact', head: true }),
+  ]);
+
+  return {
+    has_bank_account: (bankAccountCount ?? 0) > 0,
+    has_transactions: (transactionCount ?? 0) > 0,
+    has_categorized_transactions: (categorizedCount ?? 0) > 0,
+    uncategorized_count: uncategorizedCount ?? 0,
+    transaction_count: transactionCount ?? 0,
+    closed_months_count: closedMonthsCount ?? 0,
+  };
+}
+
 /**
  * Computes everything the dashboard needs in a few RLS-scoped queries.
  * Caller must already be authenticated (RLS handles tenant isolation).

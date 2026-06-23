@@ -1,12 +1,6 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { getCurrentOrganization } from '@/lib/auth/getCurrentOrganization';
 import { createClient } from '@/lib/supabase/server';
-import {
-  parseCSV,
-  detectColumns,
-  parseCsvDate,
-  parseCsvAmountCents,
-} from '@/lib/csv/parse';
 import { normalizeVendor } from '@/lib/utils/normalizeVendor';
 import { findMatchingRule } from '@/lib/transactions/applyRules';
 import type {
@@ -14,14 +8,28 @@ import type {
   TransactionDirection,
 } from '@/lib/types';
 
+interface IncomingTransaction {
+  date: string;
+  description: string;
+  amount_cents: number;
+  direction: TransactionDirection;
+}
+
+interface ImportBody {
+  bank_account_id?: string;
+  transactions?: IncomingTransaction[];
+}
+
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
 /**
  * POST /api/transactions/import
- * FormData fields:
- *   - file: the CSV file
- *   - bank_account_id: which bank account these transactions belong to
+ * JSON body:
+ *   - bank_account_id: which bank account these belong to
+ *   - transactions: the list the user confirmed in the review step
  *
- * Auto-detects columns and inserts rows. Categorization rules are applied
- * during the insert so matched rows land already categorized.
+ * Inserts the rows and applies categorization rules. This endpoint is
+ * called *after* `/api/transactions/import/parse` and the user's review.
  */
 export async function POST(request: NextRequest) {
   const ctx = await getCurrentOrganization();
@@ -29,9 +37,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
   }
 
-  let formData: FormData;
+  let body: ImportBody;
   try {
-    formData = await request.formData();
+    body = (await request.json()) as ImportBody;
   } catch {
     return NextResponse.json(
       { error: 'Upload failed — please try again.' },
@@ -39,25 +47,27 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const file = formData.get('file');
-  const bankAccountId = formData.get('bank_account_id');
+  const bankAccountId = body.bank_account_id;
+  const transactions = body.transactions;
 
-  if (!(file instanceof File)) {
-    return NextResponse.json({ error: 'Please pick a CSV file.' }, { status: 400 });
-  }
   if (typeof bankAccountId !== 'string' || !bankAccountId) {
     return NextResponse.json(
       { error: 'Pick which bank account these belong to.' },
       { status: 400 }
     );
   }
+  if (!Array.isArray(transactions) || transactions.length === 0) {
+    return NextResponse.json(
+      { error: 'Pick at least one transaction to import.' },
+      { status: 400 }
+    );
+  }
 
   const supabase = await createClient();
 
-  // Confirm the bank account exists (and via RLS, belongs to this org).
   const { data: bankAccount } = await supabase
     .from('bank_accounts')
-    .select('id, type')
+    .select('id')
     .eq('id', bankAccountId)
     .maybeSingle();
   if (!bankAccount) {
@@ -67,29 +77,6 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Read the file as text.
-  const text = await file.text();
-  const rows = parseCSV(text);
-  if (rows.length < 2) {
-    return NextResponse.json(
-      { error: "We couldn't find any rows in that CSV." },
-      { status: 400 }
-    );
-  }
-
-  const headers = rows[0];
-  const cols = detectColumns(headers);
-  if (!cols) {
-    return NextResponse.json(
-      {
-        error:
-          "We couldn't read the columns. Make sure your CSV has Date, Description, and Amount (or Debit/Credit) columns.",
-      },
-      { status: 400 }
-    );
-  }
-
-  // Pull rules once for the whole import.
   const { data: rulesData } = await supabase
     .from('categorization_rules')
     .select('*')
@@ -112,54 +99,23 @@ export async function POST(request: NextRequest) {
   }
 
   const inserts: InsertRow[] = [];
-  let skipped = 0;
 
-  for (let i = 1; i < rows.length; i++) {
-    const row = rows[i];
-    if (row.length === 0 || row.every((c) => c === '')) continue;
-
-    const date = parseCsvDate(row[cols.date] ?? '');
-    const description = (row[cols.description] ?? '').trim();
-    if (!date || !description) {
-      skipped++;
+  for (const t of transactions) {
+    if (
+      !t ||
+      typeof t.date !== 'string' ||
+      !DATE_RE.test(t.date) ||
+      typeof t.description !== 'string' ||
+      !t.description.trim() ||
+      typeof t.amount_cents !== 'number' ||
+      !Number.isFinite(t.amount_cents) ||
+      t.amount_cents <= 0 ||
+      (t.direction !== 'money_in' && t.direction !== 'money_out')
+    ) {
       continue;
     }
 
-    let amountCents = 0;
-    let direction: TransactionDirection = 'money_out';
-
-    if (cols.amount !== undefined) {
-      const raw = parseCsvAmountCents(row[cols.amount] ?? '');
-      if (raw === 0) {
-        skipped++;
-        continue;
-      }
-      // For credit cards, banks usually show purchases as positive and
-      // payments as negative — flip so positive = money owed = money_out.
-      const flipped = bankAccount.type === 'credit_card' ? -raw : raw;
-      direction = flipped >= 0 ? 'money_in' : 'money_out';
-      amountCents = Math.abs(flipped);
-    } else {
-      const debitCents =
-        cols.debit !== undefined
-          ? parseCsvAmountCents(row[cols.debit] ?? '')
-          : 0;
-      const creditCents =
-        cols.credit !== undefined
-          ? parseCsvAmountCents(row[cols.credit] ?? '')
-          : 0;
-      if (debitCents !== 0) {
-        direction = 'money_out';
-        amountCents = Math.abs(debitCents);
-      } else if (creditCents !== 0) {
-        direction = 'money_in';
-        amountCents = Math.abs(creditCents);
-      } else {
-        skipped++;
-        continue;
-      }
-    }
-
+    const description = t.description.trim();
     const vendorNormalized = normalizeVendor(description);
     const ruleMatch = findMatchingRule(
       { description, vendor_normalized: vendorNormalized },
@@ -169,11 +125,11 @@ export async function POST(request: NextRequest) {
     inserts.push({
       organization_id: ctx.organizationId,
       bank_account_id: bankAccountId,
-      date,
+      date: t.date,
       description,
       vendor_normalized: vendorNormalized,
-      amount_cents: amountCents,
-      direction,
+      amount_cents: Math.round(t.amount_cents),
+      direction: t.direction,
       status: ruleMatch ? 'categorized' : 'uncategorized',
       account_id: ruleMatch?.account_id ?? null,
       is_tax_deductible: ruleMatch?.is_tax_deductible ?? false,
@@ -184,11 +140,7 @@ export async function POST(request: NextRequest) {
 
   if (inserts.length === 0) {
     return NextResponse.json(
-      {
-        error: skipped
-          ? "We couldn't read any usable rows. Check the date and amount columns?"
-          : 'No transactions found in that CSV.',
-      },
+      { error: 'None of those rows looked like valid transactions.' },
       { status: 400 }
     );
   }
@@ -212,7 +164,7 @@ export async function POST(request: NextRequest) {
       imported: inserts.length,
       auto_categorized: categorizedCount,
       uncategorized: inserts.length - categorizedCount,
-      skipped,
+      skipped: 0,
     },
   });
 }
