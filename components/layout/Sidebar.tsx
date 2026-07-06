@@ -17,7 +17,12 @@ import {
   Settings,
   Menu,
   X,
+  LifeBuoy,
 } from 'lucide-react';
+
+const HELP_MAILTO =
+  'mailto:hello@stacimillard.com?subject=' +
+  encodeURIComponent('Profitly Help Request');
 
 const NAV = [
   { href: '/dashboard',         label: 'Dashboard',       icon: LayoutDashboard },
@@ -111,8 +116,17 @@ export function Sidebar() {
           })}
         </nav>
 
-        <div className="px-5 py-3 border-t border-surface-border text-xs text-brand-ink/50">
-          Your books. Finally simple.
+        <div className="border-t border-surface-border px-3 py-3">
+          <a
+            href={HELP_MAILTO}
+            className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-brand-ink/70 hover:bg-surface-muted hover:text-brand-ink transition-colors"
+          >
+            <LifeBuoy className="h-5 w-5 text-brand-ink/50" aria-hidden />
+            Get Help
+          </a>
+          <p className="mt-2 px-3 text-xs text-brand-ink/50">
+            Your books. Finally simple.
+          </p>
         </div>
       </aside>
     </>

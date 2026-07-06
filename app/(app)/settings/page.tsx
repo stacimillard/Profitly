@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { Building2, Landmark, Wand2, ChevronRight } from 'lucide-react';
+import { Building2, Landmark, Wand2, Download, ChevronRight } from 'lucide-react';
 import { getCurrentOrganization } from '@/lib/auth/getCurrentOrganization';
 import { Card, CardBody } from '@/components/ui/Card';
 
@@ -25,6 +25,13 @@ const SECTIONS = [
     description:
       'Auto-sort recurring transactions so you never categorize the same vendor twice.',
     icon: Wand2,
+  },
+  {
+    href: '/settings/export',
+    title: 'Export your data',
+    description:
+      'Download your transactions, accounts, and P&L as CSV files you can open anywhere.',
+    icon: Download,
   },
 ];
 
