@@ -88,6 +88,16 @@ export async function POST(request: NextRequest) {
 
   const { transactions, skipped, source } = parsed;
 
+  // The extractors above throw ImportError when no transactions are found,
+  // so `transactions` should be non-empty here. Guard anyway so a future
+  // change can't turn the min/max walk into a crash.
+  if (transactions.length === 0) {
+    return NextResponse.json(
+      { error: "We couldn't find any transactions to import." },
+      { status: 400 }
+    );
+  }
+
   // Bound the duplicate-check query to the date range of what we just parsed.
   let minDate = transactions[0].date;
   let maxDate = transactions[0].date;

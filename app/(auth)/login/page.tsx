@@ -1,11 +1,24 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { Suspense, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 
 export default function LoginPage() {
+  return (
+    <Suspense fallback={<LoginForm nextParam={null} />}>
+      <LoginFormWithSearchParams />
+    </Suspense>
+  );
+}
+
+function LoginFormWithSearchParams() {
+  const searchParams = useSearchParams();
+  return <LoginForm nextParam={searchParams.get('next')} />;
+}
+
+function LoginForm({ nextParam }: { nextParam: string | null }) {
   const router = useRouter();
   const supabase = createClient();
   const [email, setEmail] = useState('');
@@ -32,7 +45,13 @@ export default function LoginPage() {
       return;
     }
 
-    router.push('/dashboard');
+    // Middleware bounces unauth users to /login?next=<original path> — send
+    // them back there if it's an in-app path.
+    const next =
+      nextParam && nextParam.startsWith('/') && !nextParam.startsWith('//')
+        ? nextParam
+        : '/dashboard';
+    router.push(next);
     router.refresh();
   }
 

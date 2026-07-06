@@ -61,12 +61,20 @@ export async function POST(_request: NextRequest, { params }: RouteContext) {
     .map((l) => l.matched_transaction_id)
     .filter((v): v is string => !!v);
 
-  // Flip matched transactions to "reconciled" status.
+  // Flip matched transactions to "reconciled" status. If this fails, bail
+  // out before marking the reconciliation complete so we don't end up in a
+  // half-done state.
   if (matchedTxnIds.length > 0) {
-    await supabase
+    const { error: txnUpdateError } = await supabase
       .from('transactions')
       .update({ status: 'reconciled', reconciliation_id: reconciliationId })
       .in('id', matchedTxnIds);
+    if (txnUpdateError) {
+      return NextResponse.json(
+        { error: txnUpdateError.message },
+        { status: 500 }
+      );
+    }
   }
 
   const { data, error } = await supabase

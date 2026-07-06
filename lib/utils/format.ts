@@ -30,10 +30,23 @@ export function centsToDollars(cents: number | null | undefined): number {
   return (cents ?? 0) / 100;
 }
 
+/**
+ * Parse a bare YYYY-MM-DD string as a *local* date so it renders on the
+ * calendar day the user picked. `new Date('2026-04-25')` treats it as UTC
+ * midnight, which shifts one day earlier for anyone west of UTC.
+ */
+function toLocalDate(iso: string | Date): Date {
+  if (iso instanceof Date) return iso;
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+  if (m) {
+    return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  }
+  return new Date(iso);
+}
+
 /** "Apr 25, 2026" — short readable date for tables and lists. */
 export function formatDate(iso: string | Date): string {
-  const d = typeof iso === 'string' ? new Date(iso) : iso;
-  return d.toLocaleDateString('en-CA', {
+  return toLocalDate(iso).toLocaleDateString('en-CA', {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
@@ -42,8 +55,7 @@ export function formatDate(iso: string | Date): string {
 
 /** "April 25, 2026" — long-form date for headers and summaries. */
 export function formatDateLong(iso: string | Date): string {
-  const d = typeof iso === 'string' ? new Date(iso) : iso;
-  return d.toLocaleDateString('en-CA', {
+  return toLocalDate(iso).toLocaleDateString('en-CA', {
     year: 'numeric',
     month: 'long',
     day: 'numeric',

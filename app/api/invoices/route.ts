@@ -94,18 +94,6 @@ export async function POST(request: NextRequest) {
 
   // Compute totals.
   let subtotal = 0;
-  const sanitized: Required<
-    Pick<LineItemInput, 'description' | 'quantity' | 'unit_price_cents'>
-  > & { account_id: string | null }[] extends never
-    ? never
-    : {
-        description: string;
-        quantity: number;
-        unit_price_cents: number;
-        amount_cents: number;
-        account_id: string | null;
-      }[] = [];
-
   const cleanItems: {
     description: string;
     quantity: number;
