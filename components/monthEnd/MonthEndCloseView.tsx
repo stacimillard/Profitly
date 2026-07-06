@@ -119,6 +119,18 @@ export function MonthEndCloseView({
             ? { label: 'Match receipts', href: '/receipts' }
             : null,
       },
+      {
+        key: 'bills',
+        ok: checklist.unpaid_bills_count === 0,
+        title:
+          checklist.unpaid_bills_count === 0
+            ? "No unpaid bills from this month"
+            : `Do you have any unpaid bills from this month? ${checklist.unpaid_bills_count} ${checklist.unpaid_bills_count === 1 ? 'is' : 'are'} still open`,
+        cta:
+          checklist.unpaid_bills_count > 0
+            ? { label: 'Review bills', href: '/bills' }
+            : null,
+      },
       ...checklist.reconciliation_status.map((rec) => ({
         key: `recon-${rec.bank_account_id}`,
         ok: rec.has_completed_recon,

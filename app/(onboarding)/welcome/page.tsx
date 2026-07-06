@@ -26,11 +26,11 @@ export default async function WelcomePage() {
         You&apos;re in, {firstName}.
       </h1>
       <p className="mt-4 text-lg text-brand-ink/70 leading-relaxed">
-        We&apos;ve got your books ready to go. Just a few quick questions
-        and we&apos;ll customize everything for{' '}
-        <span className="font-medium text-brand-ink">{org?.name}</span>.
+        We&apos;ll set up your books for{' '}
+        <span className="font-medium text-brand-ink">{org?.name}</span> in a few
+        quick steps. Answer as you go — anything you skip you can come back to.
       </p>
-      <p className="mt-2 text-sm text-brand-ink/60">Takes about 30 seconds.</p>
+      <p className="mt-2 text-sm text-brand-ink/60">Takes about 2 minutes.</p>
       <Link
         href="/questions"
         className="mt-8 inline-flex items-center justify-center px-6 py-3 rounded-lg bg-brand-teal text-white font-medium hover:opacity-90 transition-opacity"

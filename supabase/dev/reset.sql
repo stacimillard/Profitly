@@ -7,6 +7,7 @@
 
 -- Tables (CASCADE handles indexes, triggers, FKs, RLS policies)
 drop table if exists public.win_journal_entries     cascade;
+drop table if exists public.bills                   cascade;
 drop table if exists public.invoice_line_items      cascade;
 drop table if exists public.invoices                cascade;
 drop table if exists public.closed_months           cascade;
@@ -31,6 +32,7 @@ drop type if exists public.rule_match_field         cascade;
 drop type if exists public.rule_match_type          cascade;
 drop type if exists public.reconciliation_status    cascade;
 drop type if exists public.invoice_status           cascade;
+drop type if exists public.bill_status              cascade;
 
 -- Helper functions
 drop function if exists public.current_organization_id() cascade;

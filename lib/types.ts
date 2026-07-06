@@ -47,6 +47,23 @@ export type InvoiceStatus =
   | 'overdue'
   | 'void';
 
+export type BillStatus = 'unpaid' | 'paid' | 'overdue' | 'void';
+
+export type BusinessStructure =
+  | 'sole_proprietor'
+  | 'partnership'
+  | 'corporation'
+  | 'other';
+
+export type MigrationSource =
+  | 'brand_new'
+  | 'quickbooks'
+  | 'wave'
+  | 'spreadsheets'
+  | 'other';
+
+export type BankImportPreference = 'import' | 'manual';
+
 // ───────────────── TABLE ROW TYPES ─────────────────
 
 export interface Organization {
@@ -62,6 +79,15 @@ export interface Organization {
   has_loans: boolean;
   has_equipment: boolean;
   onboarding_completed: boolean;
+  business_structure: BusinessStructure | null;
+  province: string | null;
+  fiscal_year_end_month: number | null;
+  fiscal_year_end_day: number | null;
+  has_employees: boolean;
+  migration_source: MigrationSource | null;
+  bank_import_preference: BankImportPreference | null;
+  motivations: string[];
+  help_goal: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -231,6 +257,22 @@ export interface InvoiceLineItem {
   unit_price_cents: number;
   amount_cents: number;
   sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Bill {
+  id: string;
+  organization_id: string;
+  vendor_name: string;
+  bill_date: string;
+  due_date: string;
+  amount_cents: number;
+  account_id: string | null;
+  notes: string | null;
+  status: BillStatus;
+  paid_at: string | null;
+  paid_transaction_id: string | null;
   created_at: string;
   updated_at: string;
 }

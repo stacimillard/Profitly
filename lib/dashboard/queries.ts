@@ -13,6 +13,7 @@ export interface DashboardData {
   money_out_ytd_cents: number;
   uncategorized_count: number;
   account_count: number;
+  overdue_bills_count: number;
   recent_transactions: DashboardRecentTransaction[];
   recent_wins: WinJournalEntry[];
 }
@@ -115,6 +116,13 @@ export async function getDashboardData(): Promise<DashboardData> {
     .select('id', { count: 'exact', head: true })
     .eq('is_active', true);
 
+  const todayStr = now.toISOString().slice(0, 10);
+  const { count: overdueBillsCount } = await supabase
+    .from('bills')
+    .select('id', { count: 'exact', head: true })
+    .eq('status', 'unpaid')
+    .lt('due_date', todayStr);
+
   const { data: recentRows } = await supabase
     .from('transactions')
     .select('*, accounts(name)')
@@ -144,6 +152,7 @@ export async function getDashboardData(): Promise<DashboardData> {
     money_out_ytd_cents: ytdOut,
     uncategorized_count: uncategorizedCount ?? 0,
     account_count: accountCount ?? 0,
+    overdue_bills_count: overdueBillsCount ?? 0,
     recent_transactions: recent,
     recent_wins: (wins as WinJournalEntry[]) ?? [],
   };

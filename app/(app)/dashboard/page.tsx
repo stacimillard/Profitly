@@ -7,6 +7,7 @@ import {
   ChevronRight,
   CheckCircle2,
   BookOpen,
+  AlertTriangle,
 } from 'lucide-react';
 import { getCurrentOrganization } from '@/lib/auth/getCurrentOrganization';
 import {
@@ -50,6 +51,29 @@ export default async function DashboardPage() {
           A snapshot of {data.month_label} and your year so far.
         </p>
       </div>
+
+      {data.overdue_bills_count > 0 && (
+        <Card className="border-red-300 bg-red-50">
+          <CardBody className="flex items-center gap-3">
+            <AlertTriangle className="h-5 w-5 text-red-600 shrink-0" />
+            <div className="flex-1 text-sm text-brand-ink">
+              <span className="font-semibold">
+                {data.overdue_bills_count}{' '}
+                {data.overdue_bills_count === 1
+                  ? 'bill is past due.'
+                  : 'bills are past due.'}
+              </span>{' '}
+              Pay them soon so late fees don&apos;t stack up.
+            </div>
+            <Link
+              href="/bills"
+              className="text-sm font-medium text-red-700 hover:underline shrink-0"
+            >
+              See bills
+            </Link>
+          </CardBody>
+        </Card>
+      )}
 
       {/* KPI cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

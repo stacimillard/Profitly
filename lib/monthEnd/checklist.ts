@@ -14,6 +14,7 @@ export interface MonthEndChecklist {
   closed_at: string | null;
   uncategorized_count: number;
   unmatched_receipts_count: number;
+  unpaid_bills_count: number;
   reconciliation_status: ReconciliationStatusItem[];
   can_close: boolean;
 }
@@ -60,6 +61,13 @@ export async function getMonthEndChecklist(
     .lte('receipt_date', endStr)
     .eq('status', 'unmatched');
 
+  const { count: unpaidBillsInMonth } = await supabase
+    .from('bills')
+    .select('id', { count: 'exact', head: true })
+    .gte('bill_date', startStr)
+    .lte('bill_date', endStr)
+    .eq('status', 'unpaid');
+
   const { data: bankAccounts } = await supabase
     .from('bank_accounts')
     .select('id, name')
@@ -98,6 +106,7 @@ export async function getMonthEndChecklist(
     closed_at: existingClose?.closed_at ?? null,
     uncategorized_count: uncategorizedCount ?? 0,
     unmatched_receipts_count: unmatchedReceipts ?? 0,
+    unpaid_bills_count: unpaidBillsInMonth ?? 0,
     reconciliation_status: reconciliationStatus,
     can_close: canClose,
   };
