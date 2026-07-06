@@ -65,15 +65,42 @@ export async function POST(request: NextRequest) {
   const admin = createServiceRoleClient();
 
   // 1. Create the auth user.
-  const { data: userData, error: userError } = await admin.auth.admin.createUser({
-    email,
-    password,
-    email_confirm: true,
-    user_metadata: { full_name: fullName },
-  });
+  let userData, userError;
+  try {
+    ({ data: userData, error: userError } = await admin.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: { full_name: fullName },
+    }));
+  } catch (err) {
+    // Network/DNS failures throw instead of returning an error field.
+    console.error('[signup] createUser threw:', err);
+    return NextResponse.json(
+      {
+        error:
+          "We couldn't reach the auth service. Check that NEXT_PUBLIC_SUPABASE_URL points at a live project and try again.",
+      },
+      { status: 502 }
+    );
+  }
 
   if (userError || !userData?.user) {
-    const msg = userError?.message?.includes('already')
+    console.error('[signup] createUser error:', userError);
+    const raw = userError?.message ?? '';
+    // Supabase SDK wraps DNS/connection failures as AuthRetryableFetchError
+    // with message "fetch failed" and status 0. Surface a targeted message
+    // so operators know the auth backend can't be reached.
+    if (raw.includes('fetch failed') || userError?.status === 0) {
+      return NextResponse.json(
+        {
+          error:
+            "We couldn't reach the auth service. Check that NEXT_PUBLIC_SUPABASE_URL points at a live project and try again.",
+        },
+        { status: 502 }
+      );
+    }
+    const msg = raw.includes('already')
       ? 'Looks like an account with that email already exists. Try logging in instead.'
       : "We couldn't create your account. Try again?";
     return NextResponse.json({ error: msg }, { status: 400 });
